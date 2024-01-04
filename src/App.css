@@ -1,0 +1,119 @@
+body{
+  background-color: darkslategrey;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.App{
+  margin-top: 40px;
+  background-color: #3C486B;
+  width: 500px;
+  height: 800px;
+}
+
+Input{
+  font-size: 16px;
+  padding: 7px;
+  border: none;
+  outline: none;
+  color: #161618;
+  
+}
+
+Button{
+  margin: auto;
+  padding: 10px;
+  font-size: 24px;
+  color: #161618;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  background-color: #F9D949;
+  box-shadow: 5px 5px 0px rgba(0,0,0,1);
+  transition: all .3s ease-in-out;
+}
+
+section{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+.message{
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.message > img {
+  margin: 5px;
+  max-width: 10%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+
+.message > p {
+  height: min-content;
+  max-width: 60%;
+  text-align: left;
+  margin: 5px;
+  word-wrap: break-word;
+  line-height: 1.5em;
+  font-weight: lighter;
+  background-color: #F0F0F0;
+  border-radius: 20px;
+  padding: 5px 20px;
+}
+
+.chatWindow{
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-y: scroll;
+  max-width: 100%;
+}
+
+.chatWindow > * {
+  width: 100%;
+}
+
+.chatWindow > .sent{
+  justify-content: end;
+  flex-direction: row-reverse;
+}
+
+.chatWindow > .received{
+  justify-content: start;
+  flex-direction: row;
+}
+
+.chatSelectorContainer{
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+}
+
+.chatSelector{
+  flex-grow: 1;
+  cursor: pointer;
+  background-color: #F9D949;
+}
+
+.deleteBtn{
+  visibility: none;
+}
+
+.btnVisible{
+  margin: 0;
+  display: flex;
+  background-color: #F45050;
+  color: #F0F0F0;
+}
+
+.btnInv {
+  display: none;
+}
