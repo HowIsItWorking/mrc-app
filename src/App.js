@@ -36,7 +36,8 @@ function App() {
   return (
     <div className="App">
       <header>
-      {user ? <SignOut /> : <SignIn />} 
+      {user ? <SignOut /> : <SignIn />}
+      {user && < GoBack setChatPass={setChatPass}/>}
       </header>
       <aside>
         {user && !isChatChoosen && <ChatSelectPage setChatPass={setChatPass}/>}
@@ -50,6 +51,17 @@ function App() {
 }
 const chatListRef = query(collection(firestore, "chatRooms"));
 
+
+function GoBack({setChatPass, ...rest}){
+  return(
+    <>
+      <button onClick={() => {
+        chatpass = null;
+        setChatPass(false);
+      }}>Go back</button>
+    </>
+  )
+}
 function ChatSelectPage({setChatPass, ...rest}){
   const [chatList, setChatList] = useState([]);
   const chatListData = [];
@@ -68,7 +80,6 @@ function ChatSelectPage({setChatPass, ...rest}){
 
   function deleteRoom(chat){
     const {uid} = auth.currentUser;
-      console.log(chat.id)
       if(chat.data().owner_uid === uid){
         
         firestore.collection("chatRooms").doc(chat.id).delete();
@@ -164,7 +175,12 @@ function ChatRoom(){
   const [messages, setMessages] = useState([]);
   const [chatData, setChatData] = useState([]);
 
-  const chatRef = firestore.collection("chatRooms").doc(chatpass);
+  var chatRef;
+
+  if(chatpass != null){
+    chatRef = firestore.collection("chatRooms").doc(chatpass);
+  }
+
 
   //! console.log(query(collection(firestore.collection("chatRooms").doc(chatpass), "messages")));
 
