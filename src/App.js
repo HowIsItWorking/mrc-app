@@ -3,7 +3,7 @@ import './App.css';
 import firebase from 'firebase/compat/app';
 import "firebase/compat/firestore";
 import "firebase/compat/auth";
-import { query, collection, onSnapshot, addDoc, getDocs } from 'firebase/firestore';
+import { doc, query, collection, onSnapshot, addDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 
 import {useAuthState} from "react-firebase-hooks/auth";
 import { useEffect, useState } from 'react';
@@ -29,6 +29,7 @@ function App() {
   const [isChatChoosen, setIsChatChoosen] = useState(false);
   const [chatPass, setChatPass] = useState();
 
+
   useEffect(()=>{
     setIsChatChoosen(chatpass != null)
   },[chatPass])
@@ -36,8 +37,10 @@ function App() {
   return (
     <div className="App">
       <header>
-      {user ? <SignOut /> : <SignIn />}
-      {user && < GoBack setChatPass={setChatPass}/>}
+      {!user && <SignIn />}
+      {user && !isChatChoosen && <SignOut />}
+      {isChatChoosen && <GoBack setChatPass={setChatPass}/>}
+      {isChatChoosen && chatpass != undefined && <h3 className='ChatTitle'>{chatpass.data().name}</h3>}
       </header>
       <aside>
         {user && !isChatChoosen && <ChatSelectPage setChatPass={setChatPass}/>}
@@ -62,6 +65,7 @@ function GoBack({setChatPass, ...rest}){
     </>
   )
 }
+
 function ChatSelectPage({setChatPass, ...rest}){
   const [chatList, setChatList] = useState([]);
   const chatListData = [];
@@ -80,9 +84,15 @@ function ChatSelectPage({setChatPass, ...rest}){
 
   function deleteRoom(chat){
     const {uid} = auth.currentUser;
-      if(chat.data().owner_uid === uid){
+      if(uid === chat.data().owner_uid){
+
+        let pass = prompt("THIS ACTION CAUSES PERMANENT LOSS OF DATA.\nOnly do this if you know what you're doing.\nEter the room name to delete.")
+
+
+        if(pass === chat.data().name){
+          firestore.collection("chatRooms").doc(chat.id).delete();
+        }
         
-        firestore.collection("chatRooms").doc(chat.id).delete();
         getList();
       }
   }
@@ -94,19 +104,32 @@ function ChatSelectPage({setChatPass, ...rest}){
         {chatList && chatList.map(
           chat => {
             return(
-              <div className='chatSelectorContainer'>
-                <div onClick={() => {
-                  chatpass = chat.id;
-                  setChatPass(true);
-                  //console.log(chat.id);
-                  //console.log(query(collection(firestore.collection("chatRooms").doc(chatpass), "messages")));
+              <div key={chat.id} className='chatSelectorContainer'>
+                <div
+                onClick={() => {
+                  if(chat.data().isPrivate){
+                    let pass = prompt("Please, enter the password.", "Here goes the password");
+                    if(pass === chat.data().password){
+                      chatpass = chat;
+                      setChatPass(true);
+                    } else{
+                      alert('Please try again');
+                      return;
+                    }
+                  } else {
+                    chatpass = chat;
+                    setChatPass(true);
+                  }
                 }} className='chatSelector'>
-                  <h3 className='ChatName'>{chat.data().name}</h3>
+                  <h3 className='ChatName'>{chat.data().name} {chat.data().isPrivate && "🔒"}</h3>
+                  <UsersOnline chat={chat} total={chat.data().capacity}/>
                 </div>
-                  <button
-                  className={`deleteBtn ${auth.currentUser.uid === chat.data().owner_uid ? "btnVisible" : "btnInv"}`}
+                <p></p>
+                {auth.currentUser.uid === chat.data().owner_uid &&
+                <button
+                  className={`deleteBtn`}
                   onClick={() => deleteRoom(chat)}
-                  >Delete</button>
+                  >Delete</button>}
               </div>
             )
           }
@@ -122,18 +145,27 @@ function ChatSelectPage({setChatPass, ...rest}){
 function CreateChatRoom({updateList}){
 
   const [formValue, setFormValue] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [passwordInputValue, setPasswordInputValue] = useState("");
+  const [capacityInputValue, setCapacityInputValue] = useState(5);
 
   const createChat = async(e) => {
+
+    if(formValue === ""){
+      console.log("A chat must contain a name.")
+      e.preventDefault();
+    return;
+    }
     e.preventDefault();
 
     const {uid} = auth.currentUser;
 
     const newChat = {
-      capacity: 5,
+      capacity: capacityInputValue,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      isPrivate: false,
+      isPrivate: isPrivate,
       name: formValue,
-      password: "",
+      password: passwordInputValue,
       owner_uid: uid
     }
 
@@ -143,9 +175,53 @@ function CreateChatRoom({updateList}){
     updateList();
   }
     return(
-      <form onSubmit={createChat}>
-        <input value={formValue} onChange={(e) => setFormValue(e.target.value)}/>
-        <button type='submit'>CreateChat</button>
+      <form className='createChatForm' onSubmit={createChat}>
+      <h3>Create a chat</h3>
+        <div className='privateInputContainer'>
+          <label htmlFor="IsPrivate">Make it private?</label>
+          <input type='checkbox'
+          name='IsPrivate'
+          defaultChecked=""
+          onChange={e => {
+            setIsPrivate(e.target.checked)
+          }}/>
+          {isPrivate &&
+          <input
+            type='text'
+            value={passwordInputValue}
+            placeholder='Password for this chat.'
+            onChange={e => setPasswordInputValue(e.target.value)}
+          />
+          }
+        </div>
+        <div className='capacityInputContainer'>
+          <p>Capacity:</p>
+          <input type='number'
+          min={2} max={100}
+          value={capacityInputValue}
+          onChange={e => {
+            if (Number(e.target.value) < 2){
+              e.preventDefault()
+              setCapacityInputValue(2)
+            } else if (Number(e.target.value) > 100){
+              e.preventDefault()
+              setCapacityInputValue(100)
+            }
+            setCapacityInputValue(Number(e.target.value))
+          }}
+
+          />
+        </div>
+        <div>
+          <input
+          required
+          type='text'
+          value={formValue}
+          placeholder='Name for this chat'
+          onChange={(e) => setFormValue(e.target.value)
+          }/>
+          <button type='submit'>Create</button>
+        </div>
       </form>
     )
 }
@@ -172,18 +248,48 @@ function SignOut(){
   }
   
 function ChatRoom(){
+
+  useEffect(() => {
+
+    const chatUsersRef = collection(firestore.collection("chatRooms").doc(chatpass.id), "users");
+    const userDocRef = doc(chatUsersRef, auth.currentUser.uid);
+
+    // Add user to "users" collection when entering the chat
+    const addUserToChat = async () => {
+      await setDoc(userDocRef, {
+        userId: auth.currentUser.uid,
+        username: auth.currentUser.displayName || 'Anonymous',
+        photoURL: auth.currentUser.photoURL
+      });
+    };
+
+    addUserToChat();
+
+    const beforeUnloadHandler = async () => {
+      try{
+        await deleteDoc(userDocRef);
+        console.log("User removed from 'users' collection");
+      } catch (error){
+        console.error("error trying to remove user from 'users' collection.", error);
+      }
+    }
+
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+
+    return () => {
+      beforeUnloadHandler();
+      window.removeEventListener("beforeunload", beforeUnloadHandler);
+    }
+  }, [])
+
+
   const [messages, setMessages] = useState([]);
-  const [chatData, setChatData] = useState([]);
 
   var chatRef;
 
   if(chatpass != null){
-    chatRef = firestore.collection("chatRooms").doc(chatpass);
+    chatRef = firestore.collection("chatRooms").doc(chatpass.id);
   }
-
-
-  //! console.log(query(collection(firestore.collection("chatRooms").doc(chatpass), "messages")));
-
   const [formValue, setFormValue] = useState("");
 
   const sendMessage = async(e) => {
@@ -202,37 +308,71 @@ function ChatRoom(){
   }
 
   useEffect(() => {
-    const unsub = onSnapshot(query(chatRef.collection("messages")), (e) =>{
+    const unsub = onSnapshot(query(chatRef.collection("messages")), async (event) =>{
 
       const msg = [];
 
-      e.forEach((doc) => {
+      event.forEach((doc) => {
         msg.push(doc.data());
       })
       msg.sort((a,b) => b.createdAt - a.createdAt)
-
-      setChatData(msg);
+      
+      setMessages(msg);
     });
-
-    setMessages(chatData);
 
     return ()=>unsub();
 
-  }, [chatData.length]);
-  
+  }, [messages.length]);
+
+  const [usersOnline, setUsersOnline] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(chatRef.collection("users")), async (event) =>{
+
+      const users = [];
+
+      event.forEach((doc) => {
+        users.push(doc.data());
+      })
+      
+      setUsersOnline(users);
+    });
+
+    return ()=>unsub();
+
+  }, [usersOnline.length]);
+
 
   return(
     <>
       <div className='chatWindow'>
-        {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+        {messages && messages.map(msg => <ChatMessage message={msg} />)}
       </div>
-      <div>
+      <div className='ChatMiscContainer'>
       <form onSubmit={sendMessage}>
-        <input value={formValue} onChange={(e) => setFormValue(e.target.value)}/>
+        <input required type='text' value={formValue}
+        placeholder='Enter message'
+        onChange={(e) => setFormValue(e.target.value)}/>
           <button type='submit'>Send</button>
       </form>
+      <div className='UsersContainer'>
+      {
+        usersOnline && usersOnline.map(user => {
+          return <User user={user} key={user.id} />;
+        })
+      }
+      </div>
       </div>
     </>
+  )
+}
+
+function User({user}){
+  return(
+    <div className='userProfile'>
+      <img src={user.photoURL} alt={user.username}></img>
+      <p>{user.username}</p>
+    </div>
   )
 }
 
@@ -240,10 +380,36 @@ function ChatMessage(props){
   const {text, uid, photoURL} = props.message;
   const messageClass = uid === auth.currentUser.uid ? "sent" : "received";
   return (
-    <div className={`message ${messageClass}`}>
+    <div key={props.message.id} className={`message ${messageClass}`}>
     <img src={photoURL} alt={`user pfp`}/>
     <p>{text}</p>
     </div>
+  )
+}
+
+function UsersOnline({total, chat}){
+
+  const [usersOnline, setUsersOnline] = useState(0);
+  const chatData = firestore.collection("chatRooms").doc(chat.id);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(chatData.collection("users")), async (event) =>{
+
+      const users = [];
+
+      event.forEach((doc) => {
+        users.push(doc.data());
+      })
+      
+      setUsersOnline(users.length);
+    });
+
+    return ()=>unsub();
+
+  }, [usersOnline]);
+
+  return(
+    <p>{usersOnline} / {total}</p>
   )
 }
 
